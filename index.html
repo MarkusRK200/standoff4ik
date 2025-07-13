@@ -2,6 +2,9 @@
 <html>
 <head>
     <title>ванек стимулятор</title>
+    <!-- Добавляем Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -342,6 +345,33 @@
             background-color: #ff5500;
             border-radius: 3px;
         }
+
+        /* Стиль для списка онлайн игроков */
+        .online-users {
+            margin-top: 15px;
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .online-users h3 {
+            color: #ff5500;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .online-user {
+            padding: 3px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .online-user::before {
+            content: "•";
+            color: #4CAF50;
+            font-weight: bold;
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body>
@@ -360,6 +390,11 @@
                 <h3>Игрок: <span id="currentUser">Гость</span></h3>
                 <p>Прокруток: <span id="userRolls">0</span></p>
                 <p>Время: <span id="userTime">0:00</span></p>
+            </div>
+            
+            <div class="online-users">
+                <h3>Онлайн (<span id="onlineCount">0</span>)</h3>
+                <div id="onlineUsersList"></div>
             </div>
             
             <div class="leaderboard">
@@ -386,7 +421,7 @@
 
             <div id="result">Жми "Открыть"</div>
             <button onclick="startRoll()">Открыть кейс</button>
-            <button onclick="reset()">Сбросить (хз зач кнопка)</button>
+            <button onclick="reset()">Сбросить</button>
 
             <div class="inventory">
                 <h2>Твой инвентарь:</h2>
@@ -418,6 +453,21 @@
     </audio>
 
     <script>
+        // Конфигурация Firebase (замените на свою)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBdZsfvTIGZB7pA7LkpWzyMNhLmbg_oWvo",
+            authDomain: "standof4ik-2c629.firebaseapp.com",
+            databaseURL: "https://standof4ik-2c629-default-rtdb.firebaseio.com",
+            projectId: "standof4ik-2c629",
+            storageBucket: "standof4ik-2c629.firebasestorage.app",
+            messagingSenderId: "101617540930",
+            appId: "1:101617540930:web:6d75f2408bba28a47032db"
+        };
+
+        // Инициализация Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
         // База предметов с картинками
         const items = [
             {
@@ -517,36 +567,12 @@
             }
         ];
 
-        // Начальные тестовые данные игроков
-        const defaultPlayers = [
-            {name: "Ванёк", rolls: 42, time: 1250, inventory: []},
-            {name: "Мелстрой", rolls: 35, time: 980, inventory: []},
-            {name: "Манго", rolls: 28, time: 750, inventory: []},
-            {name: "Дэвид", rolls: 19, time: 520, inventory: []},
-            {name: "Степа", rolls: 15, time: 360, inventory: []}
-        ];
-
-        // Начальные тестовые события
-        const defaultEvents = [
-            {username: "Ванёк", itemName: "залупа 'черная(негра)'", rarity: "mythic", time: "12:30"},
-            {username: "Мелстрой", itemName: "Самий крутой 'Мелстрой💀'", rarity: "mythic", time: "12:25"},
-            {username: "Манго", itemName: "МАНГО 'МАНГО МАНГО'", rarity: "legendary", time: "12:20"},
-            {username: "Дэвид", itemName: "Элитный Агент 'Дэвид'", rarity: "epic", time: "12:15"},
-            {username: "Степа", itemName: "Элитный Агент 'Стеееепочкин'", rarity: "rare", time: "12:10"}
-        ];
-
-        // Данные игроков (объединяем сохраненных с тестовыми)
-        let players = JSON.parse(localStorage.getItem('caseSimulatorPlayers')) || [];
-        players = [...players, ...defaultPlayers.filter(p => !players.some(sp => sp.name === p.name))];
-
-        // Массив для хранения событий (объединяем сохраненные с тестовыми)
-        let events = JSON.parse(localStorage.getItem('caseSimulatorEvents')) || [];
-        events = [...events, ...defaultEvents.filter(e => !events.some(se => se.time === e.time && se.username === e.username))];
-
         let currentUser = null;
         let userRolls = 0;
         let userTime = 0;
         let timeInterval;
+        let userRef = null;
+        let userOnlineRef = null;
 
         const caseItems = document.getElementById('caseItems');
         const inventoryItems = document.getElementById('inventoryItems');
@@ -559,6 +585,8 @@
         const userTimeSpan = document.getElementById('userTime');
         const timeLeaderboard = document.getElementById('timeLeaderboard');
         const rollsLeaderboard = document.getElementById('rollsLeaderboard');
+        const onlineUsersList = document.getElementById('onlineUsersList');
+        const onlineCount = document.getElementById('onlineCount');
 
         let isRolling = false;
         let finalItem;
@@ -569,36 +597,14 @@
             // Проверяем, есть ли сохраненный пользователь
             const savedUser = localStorage.getItem('caseSimulatorCurrentUser');
             if (savedUser) {
-                currentUser = savedUser;
-                currentUserSpan.textContent = currentUser;
-                
-                // Находим данные пользователя
-                const userData = players.find(p => p.name === currentUser) || {
-                    name: currentUser,
-                    rolls: 0,
-                    time: 0,
-                    inventory: []
-                };
-                
-                userRolls = userData.rolls || 0;
-                userRollsSpan.textContent = userRolls;
-                
-                userTime = userData.time || 0;
-                updateTimeDisplay();
-                
-                userInventory = userData.inventory || [];
-                updateInventory();
-                
-                // Начинаем отсчет времени
-                startTimeTracking();
+                usernameInput.value = savedUser;
+                registerUser();
             } else {
                 // Показываем модальное окно регистрации
                 registerModal.style.display = 'flex';
             }
             
             initCase();
-            updateLeaderboards();
-            updateEventFeed();
             
             // Запускаем музыку после взаимодействия пользователя
             document.body.addEventListener('click', function() {
@@ -624,20 +630,128 @@
                 currentUserSpan.textContent = currentUser;
                 localStorage.setItem('caseSimulatorCurrentUser', currentUser);
                 
-                // Добавляем пользователя в список, если его там нет
-                if (!players.some(p => p.name === currentUser)) {
-                    players.push({
+                // Инициализация пользователя в базе данных
+                initializeUser();
+                
+                registerModal.style.display = 'none';
+            }
+        }
+
+        // Инициализация пользователя в Firebase
+        function initializeUser() {
+            // Ссылка на данные пользователя
+            userRef = database.ref('users/' + encodeUsername(currentUser));
+            
+            // Загружаем данные пользователя
+            userRef.once('value').then(snapshot => {
+                const userData = snapshot.val();
+                
+                if (userData) {
+                    // Пользователь существует - загружаем его данные
+                    userRolls = userData.rolls || 0;
+                    userRollsSpan.textContent = userRolls;
+                    
+                    userTime = userData.time || 0;
+                    updateTimeDisplay();
+                    
+                    userInventory = userData.inventory || [];
+                    updateInventory();
+                } else {
+                    // Новый пользователь - создаем запись
+                    userRef.set({
                         name: currentUser,
                         rolls: 0,
                         time: 0,
                         inventory: []
                     });
-                    savePlayers();
+                    
+                    userRolls = 0;
+                    userRollsSpan.textContent = userRolls;
+                    
+                    userTime = 0;
+                    updateTimeDisplay();
+                    
+                    userInventory = [];
+                    updateInventory();
                 }
                 
-                registerModal.style.display = 'none';
+                // Начинаем отсчет времени
                 startTimeTracking();
-            }
+                
+                // Подключаемся к списку онлайн игроков
+                setupOnlinePresence();
+                
+                // Загружаем таблицы лидеров
+                loadLeaderboards();
+                
+                // Подписываемся на обновления ленты событий
+                subscribeToEvents();
+            });
+        }
+
+        // Кодирование имени пользователя для использования в качестве ключа
+        function encodeUsername(username) {
+            return username.replace(/\./g, ',').replace(/\$/g, ';').replace(/#/g, '@').replace(/\[/g, '(').replace(/\]/g, ')');
+        }
+
+        // Декодирование имени пользователя
+        function decodeUsername(encoded) {
+            return encoded.replace(/,/g, '.').replace(/;/g, '$').replace(/@/g, '#').replace(/\(/g, '[').replace(/\)/g, ']');
+        }
+
+        // Настройка онлайн-присутствия
+        function setupOnlinePresence() {
+            // Ссылка на статус онлайн текущего пользователя
+            userOnlineRef = database.ref('online/' + encodeUsername(currentUser));
+            
+            // Устанавливаем статус "онлайн"
+            userOnlineRef.set({
+                name: currentUser,
+                lastActive: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            // Обновляем время последней активности каждые 15 секунд
+            setInterval(() => {
+                userOnlineRef.update({
+                    lastActive: firebase.database.ServerValue.TIMESTAMP
+                });
+            }, 15000);
+            
+            // Подписываемся на список онлайн пользователей
+            database.ref('online').on('value', snapshot => {
+                const onlineUsers = [];
+                const now = Date.now();
+                
+                snapshot.forEach(userSnapshot => {
+                    const userData = userSnapshot.val();
+                    // Считаем пользователя онлайн, если он был активен в последние 30 секунд
+                    if (now - userData.lastActive < 30000) {
+                        onlineUsers.push({
+                            name: userData.name,
+                            lastActive: userData.lastActive
+                        });
+                    }
+                });
+                
+                // Обновляем список онлайн пользователей
+                updateOnlineUsersList(onlineUsers);
+            });
+        }
+
+        // Обновление списка онлайн пользователей
+        function updateOnlineUsersList(users) {
+            onlineUsersList.innerHTML = '';
+            onlineCount.textContent = users.length;
+            
+            // Сортируем по алфавиту
+            users.sort((a, b) => a.name.localeCompare(b.name));
+            
+            users.forEach(user => {
+                const userElement = document.createElement('div');
+                userElement.className = 'online-user';
+                userElement.textContent = user.name;
+                onlineUsersList.appendChild(userElement);
+            });
         }
 
         // Начало отсчета времени
@@ -647,12 +761,11 @@
                 userTime++;
                 updateTimeDisplay();
                 
-                // Обновляем данные пользователя
-                const userIndex = players.findIndex(p => p.name === currentUser);
-                if (userIndex !== -1) {
-                    players[userIndex].time = userTime;
-                    savePlayers();
-                    updateLeaderboards();
+                // Обновляем время пользователя в базе данных
+                if (userRef) {
+                    userRef.update({
+                        time: userTime
+                    });
                 }
             }, 1000);
         }
@@ -664,43 +777,78 @@
             userTimeSpan.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
 
-        // Сохранение данных игроков
-        function savePlayers() {
-            // Сохраняем только текущего игрока и топ-5 из начальных данных
-            const playersToSave = players.filter(p => p.name === currentUser || defaultPlayers.some(dp => dp.name === p.name));
-            localStorage.setItem('caseSimulatorPlayers', JSON.stringify(playersToSave));
-        }
-
-        // Обновление таблиц лидеров
-        function updateLeaderboards() {
+        // Загрузка таблиц лидеров
+        function loadLeaderboards() {
             // Топ по времени
-            const timeSorted = [...players].sort((a, b) => b.time - a.time).slice(0, 5);
-            timeLeaderboard.innerHTML = '';
-            timeSorted.forEach((player, index) => {
-                const minutes = Math.floor(player.time / 60);
-                const seconds = player.time % 60;
-                const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            database.ref('users').orderByChild('time').limitToLast(5).on('value', snapshot => {
+                timeLeaderboard.innerHTML = '';
+                const leaders = [];
                 
-                const item = document.createElement('div');
-                item.className = 'leaderboard-item';
-                item.innerHTML = `
-                    <span>${index + 1}. ${player.name}</span>
-                    <span>${timeStr}</span>
-                `;
-                timeLeaderboard.appendChild(item);
+                snapshot.forEach(userSnapshot => {
+                    leaders.push(userSnapshot.val());
+                });
+                
+                // Сортируем по убыванию времени
+                leaders.sort((a, b) => b.time - a.time);
+                
+                leaders.forEach((player, index) => {
+                    const minutes = Math.floor(player.time / 60);
+                    const seconds = player.time % 60;
+                    const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'leaderboard-item';
+                    item.innerHTML = `
+                        <span>${index + 1}. ${player.name}</span>
+                        <span>${timeStr}</span>
+                    `;
+                    timeLeaderboard.appendChild(item);
+                });
             });
             
             // Топ по прокруткам
-            const rollsSorted = [...players].sort((a, b) => b.rolls - a.rolls).slice(0, 5);
-            rollsLeaderboard.innerHTML = '';
-            rollsSorted.forEach((player, index) => {
-                const item = document.createElement('div');
-                item.className = 'leaderboard-item';
-                item.innerHTML = `
-                    <span>${index + 1}. ${player.name}</span>
-                    <span>${player.rolls}</span>
-                `;
-                rollsLeaderboard.appendChild(item);
+            database.ref('users').orderByChild('rolls').limitToLast(5).on('value', snapshot => {
+                rollsLeaderboard.innerHTML = '';
+                const leaders = [];
+                
+                snapshot.forEach(userSnapshot => {
+                    leaders.push(userSnapshot.val());
+                });
+                
+                // Сортируем по убыванию прокруток
+                leaders.sort((a, b) => b.rolls - a.rolls);
+                
+                leaders.forEach((player, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'leaderboard-item';
+                    item.innerHTML = `
+                        <span>${index + 1}. ${player.name}</span>
+                        <span>${player.rolls}</span>
+                    `;
+                    rollsLeaderboard.appendChild(item);
+                });
+            });
+        }
+
+        // Подписка на обновления ленты событий
+        function subscribeToEvents() {
+            database.ref('events').limitToLast(20).on('value', snapshot => {
+                eventItems.innerHTML = '';
+                const events = [];
+                
+                snapshot.forEach(eventSnapshot => {
+                    events.push(eventSnapshot.val());
+                });
+                
+                // Сортируем по времени (новые сверху)
+                events.reverse().forEach(event => {
+                    const eventElement = document.createElement('div');
+                    eventElement.className = `event-item rarity-${event.rarity}`;
+                    eventElement.innerHTML = `
+                        [${event.time}] <span>${event.username}</span> выбил ${event.itemName}
+                    `;
+                    eventItems.appendChild(eventElement);
+                });
             });
         }
 
@@ -758,12 +906,11 @@
             userRolls++;
             userRollsSpan.textContent = userRolls;
             
-            // Обновляем данные пользователя
-            const userIndex = players.findIndex(p => p.name === currentUser);
-            if (userIndex !== -1) {
-                players[userIndex].rolls = userRolls;
-                savePlayers();
-                updateLeaderboards();
+            // Обновляем данные пользователя в базе данных
+            if (userRef) {
+                userRef.update({
+                    rolls: userRolls
+                });
             }
 
             // Выбираем случайный предмет с учетом редкости
@@ -821,11 +968,11 @@
         function addToInventory(item) {
             userInventory.push(item);
             
-            // Обновляем инвентарь пользователя в players
-            const userIndex = players.findIndex(p => p.name === currentUser);
-            if (userIndex !== -1) {
-                players[userIndex].inventory = userInventory;
-                savePlayers();
+            // Обновляем инвентарь пользователя в базе данных
+            if (userRef) {
+                userRef.update({
+                    inventory: userInventory
+                });
             }
             
             updateInventory();
@@ -863,34 +1010,25 @@
                 username: username,
                 itemName: itemName,
                 rarity: rarity,
-                time: timeStr
+                time: timeStr,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
             };
             
-            events.unshift(event);
-            if (events.length > 20) events.pop();
-            
-            // Сохраняем только последние 20 событий
-            localStorage.setItem('caseSimulatorEvents', JSON.stringify(events.slice(0, 20)));
-            updateEventFeed();
-        }
-
-        // Функция для обновления ленты событий
-        function updateEventFeed() {
-            eventItems.innerHTML = '';
-            events.forEach(event => {
-                const eventElement = document.createElement('div');
-                eventElement.className = `event-item rarity-${event.rarity}`;
-                eventElement.innerHTML = `
-                    [${event.time}] <span>${event.username}</span> выбил ${event.itemName}
-                `;
-                eventItems.appendChild(eventElement);
-            });
+            // Добавляем событие в базу данных
+            database.ref('events').push(event);
         }
 
         function reset() {
             caseItems.style.transform = 'translateX(0)';
             document.getElementById('result').innerHTML = "Жми 'Открыть'";
         }
+
+        // При закрытии страницы удаляем пользователя из списка онлайн
+        window.addEventListener('beforeunload', function() {
+            if (userOnlineRef) {
+                userOnlineRef.remove();
+            }
+        });
     </script>
 </body>
 </html>
