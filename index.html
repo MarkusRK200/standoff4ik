@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ванек стимулятор</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #121212;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .main-container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .left-panel {
+            width: 250px;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            margin-right: 20px;
+        }
+
+        .right-panel {
+            flex-grow: 1;
+        }
+
+        .case-container {
+            width: 300px;
+            height: 150px;
+            margin: 20px auto;
+            overflow: hidden;
+            position: relative;
+            border: 3px solid #ff5500;
+            border-radius: 10px;
+        }
+
+        .case-items {
+            display: flex;
+            position: absolute;
+            left: 0;
+            transition: transform 2s cubic-bezier(0.1, 0.7, 0.1, 1);
+        }
+
+        .case-item {
+            min-width: 300px;
+            height: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            background: #1e1e1e;
+            border-right: 1px solid #333;
+        }
+
+        .case-item img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #ff5500;
+            border: none;
+            color: white;
+            cursor: pointer;
+            margin: 10px;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #ff7733;
+            transform: translateY(-2px);
+        }
+
+        .rarity-common {
+            color: #b0c3d9;
+        }
+
+        .rarity-rare {
+            color: #5e98d9;
+        }
+
+        .rarity-epic {
+            color: #8847ff;
+        }
+
+        .rarity-legendary {
+            color: #eb4b4b;
+        }
+
+        .rarity-mythic {
+            color: #ffd700;
+            text-shadow: 0 0 10px gold;
+        }
+
+        /* Инвентарь с горизонтальным скроллом */
+        .inventory {
+            margin-top: 30px;
+            padding: 15px;
+            background: #1e1e1e;
+            border-radius: 10px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .inventory h2 {
+            color: #ff5500;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .inventory-container {
+            display: flex;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            padding-bottom: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #ff5500 #1e1e1e;
+        }
+
+        .inventory-container::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .inventory-container::-webkit-scrollbar-track {
+            background: #1e1e1e;
+            border-radius: 10px;
+        }
+
+        .inventory-container::-webkit-scrollbar-thumb {
+            background-color: #ff5500;
+            border-radius: 10px;
+        }
+
+        .inventory-items {
+            display: flex;
+            gap: 10px;
+            padding: 5px;
+        }
+
+        .inventory-item {
+            background: #2a2a2a;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 0 0 auto;
+            width: 80px;
+        }
+
+        .inventory-item img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            margin-bottom: 5px;
+        }
+
+        /* Кнопка музыки */
+        .music-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #ff5500;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.2s;
+        }
+
+        .music-control:hover {
+            background: #ff7733;
+            transform: scale(1.1);
+        }
+
+        /* Кнопка доната */
+        .donate-btn {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: linear-gradient(135deg, #ff5500, #ff9900);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 85, 0, 0.4);
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .donate-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(255, 85, 0, 0.6);
+            background: linear-gradient(135deg, #ff9900, #ff5500);
+        }
+
+        .donate-btn:active {
+            transform: translateY(1px);
+        }
+
+        .donate-btn::before {
+            content: "💰";
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .donate-btn.pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Модальное окно регистрации */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1001;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+        }
+
+        .leaderboard {
+            margin-top: 20px;
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .leaderboard h3 {
+            color: #ff5500;
+            margin-top: 0;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        /* Стили для онлайн-ленты */
+        .event-feed {
+            position: fixed;
+            bottom: 150px;
+            left: 0;
+            right: 0;
+            background: rgba(30, 30, 30, 0.9);
+            padding: 10px;
+            border-top: 2px solid #ff5500;
+            max-height: 100px;
+            overflow-y: auto;
+            z-index: 999;
+        }
+
+        .event-feed h3 {
+            color: #ff5500;
+            margin: 0 0 5px 0;
+            text-align: center;
+        }
+
+        .event-item {
+            padding: 5px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .event-item span {
+            color: #ff5500;
+            font-weight: bold;
+        }
+
+        /* Для скроллбара онлайн-ленты */
+        .event-feed::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .event-feed::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .event-feed::-webkit-scrollbar-thumb {
+            background-color: #ff5500;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <h2>Регистрация</h2>
+            <p>Введите ваш никнейм:</p>
+            <input type="text" id="usernameInput" placeholder="Ваш ник" maxlength="15">
+            <button onclick="registerUser()">Начать играть</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div id="userInfo">
+                <h3>Игрок: <span id="currentUser">Гость</span></h3>
+                <p>Прокруток: <span id="userRolls">0</span></p>
+                <p>Время: <span id="userTime">0:00</span></p>
+            </div>
+            
+            <div class="leaderboard">
+                <h3>Топ по времени</h3>
+                <div id="timeLeaderboard">
+                    <!-- Сюда добавляются лидеры -->
+                </div>
+            </div>
+            
+            <div class="leaderboard">
+                <h3>Топ по прокруткам</h3>
+                <div id="rollsLeaderboard">
+                    <!-- Сюда добавляются лидеры -->
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <h1>СИМУЛЯТОР КЕЙСОВ ОТ ВАНЕК жоский</h1>
+
+            <div class="case-container">
+                <div class="case-items" id="caseItems"></div>
+            </div>
+
+            <div id="result">Жми "Открыть"</div>
+            <button onclick="startRoll()">Открыть кейс</button>
+            <button onclick="reset()">Сбросить (хз зач кнопка)</button>
+
+            <div class="inventory">
+                <h2>Твой инвентарь:</h2>
+                <div class="inventory-container">
+                    <div class="inventory-items" id="inventoryItems">
+                        <!-- Сюда добавляются предметы -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Онлайн-лента событий -->
+    <div class="event-feed">
+        <h3>Последние события</h3>
+        <div id="eventItems"></div>
+    </div>
+
+    <!-- Кнопка пожертвования -->
+    <button class="donate-btn pulse" onclick="window.open('https://www.donationalerts.com/r/standoff_abuser', '_blank')">Поддержать проект</button>
+
+    <!-- Кнопка управления музыкой -->
+    <button class="music-control" onclick="toggleMusic()">🔊</button>
+
+    <!-- Аудио -->
+    <audio id="bgMusic" loop>
+        <source src="https://trekson.net/uploads/files/pesnya-mango-mango-fonk.mp3" type="audio/mpeg">
+        Ваш браузер не поддерживает аудио элемент.
+    </audio>
+
+    <script>
+        // База предметов с картинками
+        const items = [
+            {
+                name: "Пистолет 'Очко платона'",
+                rarity: "common",
+                image: "images/ochk.png"
+            },
+            {
+                name: "Дилдос 'Змей горыныч'",
+                rarity: "rare",
+                image: "images/dragon.png"
+            },
+            {
+                name: "Презики 'Натяни монгола'",
+                rarity: "epic",
+                image: "images/910.png"
+            },
+            {
+                name: "AWP 'Конча в глазу'",
+                rarity: "legendary",
+                image: "images/glaz.png"
+            },
+            {
+                name: "AK-47 'Дрочу на маму'",
+                rarity: "common",
+                image: "images/mama.png"
+            },
+            {
+                name: "M4A1 'Трусики с подливой'",
+                rarity: "rare",
+                image: "images/podlv.png"
+            },
+            {
+                name: "Deagle 'хз не придумал'",
+                rarity: "epic",
+                image: "images/xz.png"
+            },
+            {
+                name: "пенис 'Кривой'",
+                rarity: "legendary",
+                image: "images/kriv.png"
+            },
+            {
+                name: "залупа 'черная(негра)'",
+                rarity: "mythic",
+                image: "images/pramoy.png"
+            },
+            {
+                name: "AWP 'Дмитрий левковски'",
+                rarity: "legendary",
+                image: "images/dimas.png"
+            },
+            {
+                name: "Самий крутой 'Мелстрой💀'",
+                rarity: "mythic",
+                image: "images/mell.png"
+            },
+            {
+                name: "МАНГО 'МАНГО МАНГО'",
+                rarity: "legendary",
+                image: "images/mango.png"
+            },
+            {
+                name: "Элитный Агент 'Дэвид'",
+                rarity: "epic",
+                image: "images/dava.png"
+            },
+            {
+                name: "пластина 'Троллфеiс'",
+                rarity: "legendary",
+                image: "images/troll.png"
+            },
+            {
+                name: "Элитный Агент 'Стеееепочкин'",
+                rarity: "rare",
+                image: "images/stepa.png"
+            },
+            {
+                name: "p90 'Какандрик'",
+                rarity: "common",
+                image: "images/kaka.png"
+            },
+            {
+                name: "хае 'Патрик'",
+                rarity: "common",
+                image: "images/patric.png"
+            },
+            {
+                name: "слеповая 'Густой лес'",
+                rarity: "rare",
+                image: "images/pot.png"
+            },
+            {
+                name: "Агент 'Мэссi'",
+                rarity: "rare",
+                image: "images/mess.png"
+            }
+        ];
+
+        // Данные игроков
+        let players = JSON.parse(localStorage.getItem('caseSimulatorPlayers')) || [];
+        let currentUser = null;
+        let userRolls = 0;
+        let userTime = 0;
+        let timeInterval;
+
+        // Массив для хранения событий
+        let events = JSON.parse(localStorage.getItem('caseSimulatorEvents')) || [];
+
+        const caseItems = document.getElementById('caseItems');
+        const inventoryItems = document.getElementById('inventoryItems');
+        const eventItems = document.getElementById('eventItems');
+        const bgMusic = document.getElementById('bgMusic');
+        const registerModal = document.getElementById('registerModal');
+        const usernameInput = document.getElementById('usernameInput');
+        const currentUserSpan = document.getElementById('currentUser');
+        const userRollsSpan = document.getElementById('userRolls');
+        const userTimeSpan = document.getElementById('userTime');
+        const timeLeaderboard = document.getElementById('timeLeaderboard');
+        const rollsLeaderboard = document.getElementById('rollsLeaderboard');
+
+        let isRolling = false;
+        let finalItem;
+        let userInventory = [];
+
+        // При загрузке страницы
+        window.onload = function() {
+            // Проверяем, есть ли сохраненный пользователь
+            const savedUser = localStorage.getItem('caseSimulatorCurrentUser');
+            if (savedUser) {
+                currentUser = savedUser;
+                currentUserSpan.textContent = currentUser;
+                
+                // Находим данные пользователя
+                const userData = players.find(p => p.name === currentUser) || {
+                    name: currentUser,
+                    rolls: 0,
+                    time: 0,
+                    inventory: []
+                };
+                
+                userRolls = userData.rolls || 0;
+                userRollsSpan.textContent = userRolls;
+                
+                userTime = userData.time || 0;
+                updateTimeDisplay();
+                
+                userInventory = userData.inventory || [];
+                updateInventory();
+                
+                // Начинаем отсчет времени
+                startTimeTracking();
+            } else {
+                // Показываем модальное окно регистрации
+                registerModal.style.display = 'flex';
+            }
+            
+            initCase();
+            updateLeaderboards();
+            updateEventFeed();
+            
+            // Запускаем музыку после взаимодействия пользователя
+            document.body.addEventListener('click', function() {
+                bgMusic.volume = 0.3;
+                bgMusic.play().catch(e => console.log("Не удалось воспроизвести музыку"));
+            }, { once: true });
+
+            // Эффект при наведении на кнопку доната
+            document.querySelector('.donate-btn').addEventListener('mouseenter', function() {
+                this.classList.add('pulse');
+            });
+
+            document.querySelector('.donate-btn').addEventListener('mouseleave', function() {
+                this.classList.remove('pulse');
+            });
+        };
+
+        // Регистрация пользователя
+        function registerUser() {
+            const username = usernameInput.value.trim();
+            if (username) {
+                currentUser = username;
+                currentUserSpan.textContent = currentUser;
+                localStorage.setItem('caseSimulatorCurrentUser', currentUser);
+                
+                // Добавляем пользователя в список, если его там нет
+                if (!players.some(p => p.name === currentUser)) {
+                    players.push({
+                        name: currentUser,
+                        rolls: 0,
+                        time: 0,
+                        inventory: []
+                    });
+                    savePlayers();
+                }
+                
+                registerModal.style.display = 'none';
+                startTimeTracking();
+            }
+        }
+
+        // Начало отсчета времени
+        function startTimeTracking() {
+            clearInterval(timeInterval);
+            timeInterval = setInterval(() => {
+                userTime++;
+                updateTimeDisplay();
+                
+                // Обновляем данные пользователя
+                const userIndex = players.findIndex(p => p.name === currentUser);
+                if (userIndex !== -1) {
+                    players[userIndex].time = userTime;
+                    savePlayers();
+                    updateLeaderboards();
+                }
+            }, 1000);
+        }
+
+        // Обновление отображения времени
+        function updateTimeDisplay() {
+            const minutes = Math.floor(userTime / 60);
+            const seconds = userTime % 60;
+            userTimeSpan.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Сохранение данных игроков
+        function savePlayers() {
+            localStorage.setItem('caseSimulatorPlayers', JSON.stringify(players));
+        }
+
+        // Обновление таблиц лидеров
+        function updateLeaderboards() {
+            // Топ по времени
+            const timeSorted = [...players].sort((a, b) => b.time - a.time).slice(0, 5);
+            timeLeaderboard.innerHTML = '';
+            timeSorted.forEach((player, index) => {
+                const minutes = Math.floor(player.time / 60);
+                const seconds = player.time % 60;
+                const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                const item = document.createElement('div');
+                item.className = 'leaderboard-item';
+                item.innerHTML = `
+                    <span>${index + 1}. ${player.name}</span>
+                    <span>${timeStr}</span>
+                `;
+                timeLeaderboard.appendChild(item);
+            });
+            
+            // Топ по прокруткам
+            const rollsSorted = [...players].sort((a, b) => b.rolls - a.rolls).slice(0, 5);
+            rollsLeaderboard.innerHTML = '';
+            rollsSorted.forEach((player, index) => {
+                const item = document.createElement('div');
+                item.className = 'leaderboard-item';
+                item.innerHTML = `
+                    <span>${index + 1}. ${player.name}</span>
+                    <span>${player.rolls}</span>
+                `;
+                rollsLeaderboard.appendChild(item);
+            });
+        }
+
+        // Управление музыкой
+        function toggleMusic() {
+            if (bgMusic.paused) {
+                bgMusic.play();
+                document.querySelector('.music-control').textContent = '🔊';
+            } else {
+                bgMusic.pause();
+                document.querySelector('.music-control').textContent = '🔇';
+            }
+        }
+
+        // Заполняем список предметов
+        function initCase() {
+            caseItems.innerHTML = '';
+            // Добавляем предметы несколько раз для плавной прокрутки
+            for (let i = 0; i < 5; i++) {
+                items.forEach(item => {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = `case-item rarity-${item.rarity}`;
+                    
+                    const imgElement = document.createElement('img');
+                    imgElement.src = item.image;
+                    imgElement.alt = item.name;
+                    imgElement.onerror = function() {
+                        this.src = 'https://via.placeholder.com/100?text=No+Image';
+                    };
+                    
+                    const nameElement = document.createElement('span');
+                    nameElement.textContent = item.name;
+                    
+                    itemElement.appendChild(imgElement);
+                    itemElement.appendChild(nameElement);
+                    caseItems.appendChild(itemElement);
+                });
+            }
+        }
+
+        // Анимация прокрутки с остановкой на выпавшем предмете
+        function startRoll() {
+            if (!currentUser) {
+                registerModal.style.display = 'flex';
+                return;
+            }
+
+            if (isRolling) return;
+            isRolling = true;
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = "Крутим...";
+            resultDiv.style.color = "white";
+
+            // Увеличиваем счетчик прокруток
+            userRolls++;
+            userRollsSpan.textContent = userRolls;
+            
+            // Обновляем данные пользователя
+            const userIndex = players.findIndex(p => p.name === currentUser);
+            if (userIndex !== -1) {
+                players[userIndex].rolls = userRolls;
+                savePlayers();
+                updateLeaderboards();
+            }
+
+            // Выбираем случайный предмет с учетом редкости
+            const roll = Math.random();
+            if (roll < 0.01) {
+                finalItem = items.find(item => item.rarity === "mythic") || items[0];
+            } else if (roll < 0.1) {
+                const legendaryItems = items.filter(item => item.rarity === "legendary");
+                finalItem = legendaryItems[Math.floor(Math.random() * legendaryItems.length)] || items[0];
+            } else if (roll < 0.3) {
+                const epicItems = items.filter(item => item.rarity === "epic");
+                finalItem = epicItems[Math.floor(Math.random() * epicItems.length)] || items[0];
+            } else if (roll < 0.6) {
+                const rareItems = items.filter(item => item.rarity === "rare");
+                finalItem = rareItems[Math.floor(Math.random() * rareItems.length)] || items[0];
+            } else {
+                const commonItems = items.filter(item => item.rarity === "common");
+                finalItem = commonItems[Math.floor(Math.random() * commonItems.length)] || items[0];
+            }
+
+            // Находим позицию этого предмета в списке
+            const allItems = document.querySelectorAll('.case-item');
+            let targetIndex = 0;
+            for (let i = 0; i < allItems.length; i++) {
+                if (allItems[i].querySelector('span').textContent === finalItem.name) {
+                    targetIndex = i;
+                    break;
+                }
+            }
+
+            // Анимация прокрутки с остановкой на выбранном предмете
+            const itemWidth = 300;
+            const targetPosition = -targetIndex * itemWidth;
+            const randomStart = -Math.floor(Math.random() * 1000) * itemWidth;
+
+            caseItems.style.transform = `translateX(${randomStart}px)`;
+            setTimeout(() => {
+                caseItems.style.transform = `translateX(${targetPosition}px)`;
+                
+                // Показываем результат
+                setTimeout(() => {
+                    resultDiv.innerHTML = `Ты получил: <br><span class="rarity-${finalItem.rarity}">${finalItem.name}</span>`;
+                    isRolling = false;
+
+                    // Добавляем предмет в инвентарь
+                    addToInventory(finalItem);
+                    
+                    // Добавляем событие в ленту
+                    addEvent(currentUser, finalItem.name, finalItem.rarity);
+                }, 2000);
+            }, 50);
+        }
+
+        // Добавление предмета в инвентарь
+        function addToInventory(item) {
+            userInventory.push(item);
+            
+            // Обновляем инвентарь пользователя в players
+            const userIndex = players.findIndex(p => p.name === currentUser);
+            if (userIndex !== -1) {
+                players[userIndex].inventory = userInventory;
+                savePlayers();
+            }
+            
+            updateInventory();
+        }
+
+        // Обновление инвентаря
+        function updateInventory() {
+            inventoryItems.innerHTML = '';
+            userInventory.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.className = `inventory-item rarity-${item.rarity}`;
+                
+                const imgElement = document.createElement('img');
+                imgElement.src = item.image;
+                imgElement.alt = item.name;
+                imgElement.onerror = function() {
+                    this.src = 'https://via.placeholder.com/50?text=No+Image';
+                };
+                
+                const nameElement = document.createElement('span');
+                nameElement.textContent = item.name;
+                
+                itemElement.appendChild(imgElement);
+                itemElement.appendChild(nameElement);
+                inventoryItems.appendChild(itemElement);
+            });
+        }
+
+        // Функция для добавления события
+        function addEvent(username, itemName, rarity) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            const event = {
+                username: username,
+                itemName: itemName,
+                rarity: rarity,
+                time: timeStr
+            };
+            
+            events.unshift(event); // Добавляем в начало массива
+            if (events.length > 20) events.pop(); // Ограничиваем количество событий
+            
+            localStorage.setItem('caseSimulatorEvents', JSON.stringify(events));
+            updateEventFeed();
+        }
+
+        // Функция для обновления ленты событий
+        function updateEventFeed() {
+            eventItems.innerHTML = '';
+            events.forEach(event => {
+                const eventElement = document.createElement('div');
+                eventElement.className = `event-item rarity-${event.rarity}`;
+                eventElement.innerHTML = `
+                    [${event.time}] <span>${event.username}</span> выбил ${event.itemName}
+                `;
+                eventItems.appendChild(eventElement);
+            });
+        }
+
+        function reset() {
+            caseItems.style.transform = 'translateX(0)';
+            document.getElementById('result').innerHTML = "Жми 'Открыть'";
+        }
+    </script>
+</body>
+</html>
