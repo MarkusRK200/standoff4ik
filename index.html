@@ -117,7 +117,6 @@
             text-shadow: 0 0 10px gold;
         }
 
-        /* Инвентарь с горизонтальным скроллом */
         .inventory {
             margin-top: 30px;
             padding: 15px;
@@ -184,7 +183,6 @@
             margin-bottom: 5px;
         }
 
-        /* Кнопка музыки */
         .music-control {
             position: fixed;
             bottom: 20px;
@@ -204,7 +202,6 @@
             transform: scale(1.1);
         }
 
-        /* Кнопка доната */
         .donate-btn {
             position: fixed;
             bottom: 80px;
@@ -251,7 +248,6 @@
             animation: pulse 1.5s infinite;
         }
 
-        /* Модальное окно регистрации */
         .modal {
             display: none;
             position: fixed;
@@ -300,7 +296,6 @@
             border-bottom: 1px solid #333;
         }
 
-        /* Стили для онлайн-ленты */
         .event-feed {
             position: fixed;
             bottom: 150px;
@@ -332,7 +327,6 @@
             font-weight: bold;
         }
 
-        /* Для скроллбара онлайн-ленты */
         .event-feed::-webkit-scrollbar {
             width: 6px;
         }
@@ -346,7 +340,6 @@
             border-radius: 3px;
         }
 
-        /* Стиль для списка онлайн игроков */
         .online-users {
             margin-top: 15px;
             background: #1e1e1e;
@@ -371,6 +364,11 @@
             color: #4CAF50;
             font-weight: bold;
             margin-right: 8px;
+        }
+
+        .you {
+            color: #ff5500;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -453,7 +451,7 @@
     </audio>
 
     <script>
-        // Конфигурация Firebase (замените на свою)
+        // Конфигурация Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBdZsfvTIGZB7pA7LkpWzyMNhLmbg_oWvo",
             authDomain: "standof4ik-2c629.firebaseapp.com",
@@ -691,12 +689,16 @@
 
         // Кодирование имени пользователя для использования в качестве ключа
         function encodeUsername(username) {
-            return username.replace(/\./g, ',').replace(/\$/g, ';').replace(/#/g, '@').replace(/\[/g, '(').replace(/\]/g, ')');
-        }
-
-        // Декодирование имени пользователя
-        function decodeUsername(encoded) {
-            return encoded.replace(/,/g, '.').replace(/;/g, '$').replace(/@/g, '#').replace(/\(/g, '[').replace(/\)/g, ']');
+            return username.replace(/[\.\$#\[\]\/]/g, function(match) {
+                return {
+                    '.': ',dot,',
+                    '$': ',dollar,',
+                    '#': ',hash,',
+                    '[': ',lbracket,',
+                    ']': ',rbracket,',
+                    '/': ',slash,'
+                }[match];
+            });
         }
 
         // Настройка онлайн-присутствия
@@ -724,12 +726,15 @@
                 
                 snapshot.forEach(userSnapshot => {
                     const userData = userSnapshot.val();
-                    // Считаем пользователя онлайн, если он был активен в последние 30 секунд
-                    if (now - userData.lastActive < 30000) {
+                    // Считаем пользователя онлайн, если он был активен в последние 45 секунд
+                    if (now - userData.lastActive < 45000) {
                         onlineUsers.push({
                             name: userData.name,
                             lastActive: userData.lastActive
                         });
+                    } else {
+                        // Удаляем неактивных пользователей
+                        database.ref('online/' + userSnapshot.key).remove();
                     }
                 });
                 
@@ -743,13 +748,21 @@
             onlineUsersList.innerHTML = '';
             onlineCount.textContent = users.length;
             
-            // Сортируем по алфавиту
-            users.sort((a, b) => a.name.localeCompare(b.name));
+            // Сортируем по алфавиту, текущий пользователь первый
+            users.sort((a, b) => {
+                if (a.name === currentUser) return -1;
+                if (b.name === currentUser) return 1;
+                return a.name.localeCompare(b.name);
+            });
             
             users.forEach(user => {
                 const userElement = document.createElement('div');
                 userElement.className = 'online-user';
-                userElement.textContent = user.name;
+                if (user.name === currentUser) {
+                    userElement.innerHTML = `<span class="you">${user.name} (Вы)</span>`;
+                } else {
+                    userElement.textContent = user.name;
+                }
                 onlineUsersList.appendChild(userElement);
             });
         }
@@ -779,8 +792,8 @@
 
         // Загрузка таблиц лидеров
         function loadLeaderboards() {
-            // Топ по времени
-            database.ref('users').orderByChild('time').limitToLast(5).on('value', snapshot => {
+            // Топ по времени (получаем 10 последних, потом сортируем)
+            database.ref('users').orderByChild('time').limitToLast(10).on('value', snapshot => {
                 timeLeaderboard.innerHTML = '';
                 const leaders = [];
                 
@@ -788,10 +801,8 @@
                     leaders.push(userSnapshot.val());
                 });
                 
-                // Сортируем по убыванию времени
-                leaders.sort((a, b) => b.time - a.time);
-                
-                leaders.forEach((player, index) => {
+                // Сортируем по убыванию времени и берем топ-5
+                leaders.sort((a, b) => b.time - a.time).slice(0, 5).forEach((player, index) => {
                     const minutes = Math.floor(player.time / 60);
                     const seconds = player.time % 60;
                     const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -806,8 +817,8 @@
                 });
             });
             
-            // Топ по прокруткам
-            database.ref('users').orderByChild('rolls').limitToLast(5).on('value', snapshot => {
+            // Топ по прокруткам (получаем 10 последних, потом сортируем)
+            database.ref('users').orderByChild('rolls').limitToLast(10).on('value', snapshot => {
                 rollsLeaderboard.innerHTML = '';
                 const leaders = [];
                 
@@ -815,10 +826,8 @@
                     leaders.push(userSnapshot.val());
                 });
                 
-                // Сортируем по убыванию прокруток
-                leaders.sort((a, b) => b.rolls - a.rolls);
-                
-                leaders.forEach((player, index) => {
+                // Сортируем по убыванию прокруток и берем топ-5
+                leaders.sort((a, b) => b.rolls - a.rolls).slice(0, 5).forEach((player, index) => {
                     const item = document.createElement('div');
                     item.className = 'leaderboard-item';
                     item.innerHTML = `
@@ -832,7 +841,7 @@
 
         // Подписка на обновления ленты событий
         function subscribeToEvents() {
-            database.ref('events').limitToLast(20).on('value', snapshot => {
+            database.ref('events').orderByChild('timestamp').limitToLast(20).on('value', snapshot => {
                 eventItems.innerHTML = '';
                 const events = [];
                 
@@ -841,7 +850,7 @@
                 });
                 
                 // Сортируем по времени (новые сверху)
-                events.reverse().forEach(event => {
+                events.sort((a, b) => b.timestamp - a.timestamp).forEach(event => {
                     const eventElement = document.createElement('div');
                     eventElement.className = `event-item rarity-${event.rarity}`;
                     eventElement.innerHTML = `
