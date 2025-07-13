@@ -517,15 +517,36 @@
             }
         ];
 
-        // Данные игроков
+        // Начальные тестовые данные игроков
+        const defaultPlayers = [
+            {name: "Ванёк", rolls: 42, time: 1250, inventory: []},
+            {name: "Мелстрой", rolls: 35, time: 980, inventory: []},
+            {name: "Манго", rolls: 28, time: 750, inventory: []},
+            {name: "Дэвид", rolls: 19, time: 520, inventory: []},
+            {name: "Степа", rolls: 15, time: 360, inventory: []}
+        ];
+
+        // Начальные тестовые события
+        const defaultEvents = [
+            {username: "Ванёк", itemName: "залупа 'черная(негра)'", rarity: "mythic", time: "12:30"},
+            {username: "Мелстрой", itemName: "Самий крутой 'Мелстрой💀'", rarity: "mythic", time: "12:25"},
+            {username: "Манго", itemName: "МАНГО 'МАНГО МАНГО'", rarity: "legendary", time: "12:20"},
+            {username: "Дэвид", itemName: "Элитный Агент 'Дэвид'", rarity: "epic", time: "12:15"},
+            {username: "Степа", itemName: "Элитный Агент 'Стеееепочкин'", rarity: "rare", time: "12:10"}
+        ];
+
+        // Данные игроков (объединяем сохраненных с тестовыми)
         let players = JSON.parse(localStorage.getItem('caseSimulatorPlayers')) || [];
+        players = [...players, ...defaultPlayers.filter(p => !players.some(sp => sp.name === p.name))];
+
+        // Массив для хранения событий (объединяем сохраненные с тестовыми)
+        let events = JSON.parse(localStorage.getItem('caseSimulatorEvents')) || [];
+        events = [...events, ...defaultEvents.filter(e => !events.some(se => se.time === e.time && se.username === e.username))];
+
         let currentUser = null;
         let userRolls = 0;
         let userTime = 0;
         let timeInterval;
-
-        // Массив для хранения событий
-        let events = JSON.parse(localStorage.getItem('caseSimulatorEvents')) || [];
 
         const caseItems = document.getElementById('caseItems');
         const inventoryItems = document.getElementById('inventoryItems');
@@ -645,7 +666,9 @@
 
         // Сохранение данных игроков
         function savePlayers() {
-            localStorage.setItem('caseSimulatorPlayers', JSON.stringify(players));
+            // Сохраняем только текущего игрока и топ-5 из начальных данных
+            const playersToSave = players.filter(p => p.name === currentUser || defaultPlayers.some(dp => dp.name === p.name));
+            localStorage.setItem('caseSimulatorPlayers', JSON.stringify(playersToSave));
         }
 
         // Обновление таблиц лидеров
@@ -843,10 +866,11 @@
                 time: timeStr
             };
             
-            events.unshift(event); // Добавляем в начало массива
-            if (events.length > 20) events.pop(); // Ограничиваем количество событий
+            events.unshift(event);
+            if (events.length > 20) events.pop();
             
-            localStorage.setItem('caseSimulatorEvents', JSON.stringify(events));
+            // Сохраняем только последние 20 событий
+            localStorage.setItem('caseSimulatorEvents', JSON.stringify(events.slice(0, 20)));
             updateEventFeed();
         }
 
